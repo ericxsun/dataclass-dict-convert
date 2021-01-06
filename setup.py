@@ -1,12 +1,14 @@
 from setuptools import setup
-import pathlib
+
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name="dataclass-dict-convert",
-    version="1.0.0",
+    version="1.0.1",
 
     description="Convert between Dataclasses and dict/json",
-    long_description=(pathlib.Path(__file__).parent / "README.md").read_text(),
+    long_description=long_description,
     long_description_content_type="text/markdown",
 
     url="https://gitlab.ilabt.imec.be/wvdemeer/dataclass-dict-convert",
