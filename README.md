@@ -63,3 +63,7 @@ The library also includes:
 - dataclass type checking tools
 - dataclass copy method generator
 - dataclass multiline repr (replace auto generated repr for dataclasses by a multiline version)
+
+Links:
+- Gitlab: https://gitlab.ilabt.imec.be/wvdemeer/dataclass-dict-convert
+- PyPi: https://pypi.org/project/dataclass-dict-convert/

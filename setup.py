@@ -12,7 +12,7 @@ setup(
     url="https://gitlab.ilabt.imec.be/wvdemeer/dataclass-dict-convert",
 
     author="Wim Van de Meerssche",
-    author_email="wim.vandemeerssche@imec.be",
+    author_email="wim.vandemeerssche@ugent.be",
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
