@@ -1,6 +1,7 @@
 import collections
 import dataclasses
 import json
+from abc import ABC, abstractmethod
 from collections import Mapping
 from datetime import datetime
 from enum import Enum
@@ -17,6 +18,36 @@ class DataclassConvertError(Exception):
 class UnknownFieldError(Exception):
     def __init__(self, message):
         self.message = message
+
+
+class TypeConvertor(ABC):
+    @abstractmethod
+    def get_type(self) -> Type:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def convert_from_dict(self, val: Union[Dict, List, int, float, str, bool]) -> Any:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def convert_to_dict(self, val: Any) -> Union[Dict, List, int, float, str, bool]:
+        raise NotImplementedError()
+
+
+@dataclasses.dataclass
+class SimpleTypeConvertor(TypeConvertor):
+    type: Type
+    from_dict: Callable[[Union[Dict, List, int, float, str, bool]], Any]
+    to_dict: Callable[[Any], Union[Dict, List, int, float, str, bool]]
+
+    def get_type(self) -> Type:
+        return self.type
+
+    def convert_from_dict(self, val: Union[Dict, List, int, float, str, bool]) -> Any:
+        return self.from_dict(val)
+
+    def convert_to_dict(self, val: Any) -> Union[Dict, List, int, float, str, bool]:
+        return self.to_dict(val)
 
 
 @dataclasses.dataclass
@@ -81,6 +112,7 @@ def _find_convertor(
         field_name, field_type,
         default_datetime_convertor: Optional[Callable[[datetime], Any]],
         custom_dict_convertors: Dict[str, Callable[[Any], Any]],
+        custom_type_convertors: List[TypeConvertor],
         direct_fields: List[str],
         is_from: bool) -> Optional[Callable[[Any], Any]]:
     try:
@@ -88,12 +120,19 @@ def _find_convertor(
             return custom_dict_convertors[field_name]
         if _is_json_primitive(field_type) or field_name in direct_fields:
             return lambda p: p
+        for custom_type_convertor in custom_type_convertors:
+            if field_type is custom_type_convertor.get_type():
+                if is_from:
+                    return custom_type_convertor.convert_from_dict
+                else:
+                    return custom_type_convertor.convert_to_dict
+        # custom_type_convertor takes precedence, so you can use it to override datetime convert as well.
         if field_type is datetime:
             return default_datetime_convertor
         if _is_optional(field_type):
             sub_convertor = _find_convertor(
                 field_name, _get_optional_type(field_type),
-                default_datetime_convertor, custom_dict_convertors, direct_fields,
+                default_datetime_convertor, custom_dict_convertors, custom_type_convertors, direct_fields,
                 is_from)
             if sub_convertor is None:
                 return None
@@ -107,7 +146,7 @@ def _find_convertor(
         if _is_list(field_type):
             sub_convertor = _find_convertor(
                 field_name, field_type.__args__[0],
-                default_datetime_convertor, custom_dict_convertors, direct_fields,
+                default_datetime_convertor, custom_dict_convertors, custom_type_convertors, direct_fields,
                 is_from)
             if sub_convertor is None:
                 return None
@@ -208,7 +247,8 @@ def _wrap_dataclass_dict_convert(
         default_to_datetime_convertor: Callable[[Any], datetime],
         default_from_datetime_convertor: Optional[Callable[[datetime], Any]],
         custom_to_dict_convertors: Dict[str, Callable[[Any], Any]],
-        custom_from_dict_convertors: Dict[str, Callable[[Any], Any]]):
+        custom_from_dict_convertors: Dict[str, Callable[[Any], Any]],
+        custom_type_convertors: List[TypeConvertor]):
     metadata_by_fields = {}
     metadata_by_dict_fields = {}
 
@@ -219,10 +259,10 @@ def _wrap_dataclass_dict_convert(
             field.name,
             dict_letter_case(field.name),
             _find_convertor(field.name, field.type,
-                            default_to_datetime_convertor, custom_to_dict_convertors, direct_fields,
+                            default_to_datetime_convertor, custom_to_dict_convertors, custom_type_convertors, direct_fields,
                             is_from=False),
             _find_convertor(field.name, field.type,
-                            default_from_datetime_convertor, custom_from_dict_convertors, direct_fields,
+                            default_from_datetime_convertor, custom_from_dict_convertors, custom_type_convertors, direct_fields,
                             is_from=True)
         )
         if meta.to_dict_convertor is None:
@@ -291,7 +331,9 @@ def dataclass_dict_convert(
         default_to_datetime_convertor: Optional[Callable[[Any], datetime]]=None,
         default_from_datetime_convertor: Optional[Callable[[datetime], Any]]=None,
         custom_to_dict_convertors: Optional[Dict[str, Callable[[Any], Any]]]=None,
-        custom_from_dict_convertors: Optional[Dict[str, Callable[[Any], Any]]]=None):
+        custom_from_dict_convertors: Optional[Dict[str, Callable[[Any], Any]]]=None,
+        custom_type_convertors: List[TypeConvertor]=None
+):
     """
     This has complex logic to allow decorating with both:
       @dataclass_dict_convert
@@ -341,7 +383,8 @@ def dataclass_dict_convert(
             default_to_datetime_convertor if default_to_datetime_convertor else dump_rfc3339,
             default_from_datetime_convertor if default_to_datetime_convertor else parse_rfc3339,
             custom_to_dict_convertors if custom_to_dict_convertors else {},
-            custom_from_dict_convertors if custom_from_dict_convertors else {},)
+            custom_from_dict_convertors if custom_from_dict_convertors else {},
+            custom_type_convertors if custom_type_convertors else [])
 
     if _cls is None:
         return wrap

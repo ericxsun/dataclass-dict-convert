@@ -1,6 +1,7 @@
 import dataclasses
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Union, Dict
 
@@ -8,8 +9,8 @@ import pytest
 from stringcase import camelcase
 
 from dataclass_dict_convert import dataclass_dict_convert, create_wrap_in_list_from_convertor, \
-    create_dict_of_dataclasses_to_convertor, create_dict_of_dataclasses_from_convertor
-from dataclass_dict_convert.convert import _is_optional
+    create_dict_of_dataclasses_to_convertor, create_dict_of_dataclasses_from_convertor, datetime_now, parse_rfc3339
+from dataclass_dict_convert.convert import _is_optional, SimpleTypeConvertor
 
 
 def test_dataclass_dict_convert_1():
@@ -408,3 +409,67 @@ def test_dataclass_dict_convert_nested_dict_8():
     actual = Test.from_dict(the_dict)
     assert actual == expected
 
+
+def test_dataclass_dict_convert_datetime_1():
+    test_date_1_str = '2020-01-01T11:22:33Z'
+    test_date_1 = parse_rfc3339(test_date_1_str)
+    test_date_2_str = '2020-03-04T00:33:44Z'
+    test_date_2 = parse_rfc3339(test_date_2_str)
+    test_date_3_str = '2020-05-06T00:55:06Z'
+    test_date_3 = parse_rfc3339(test_date_3_str)
+
+    @dataclass_dict_convert(dict_letter_case=camelcase)
+    @dataclass(frozen=True)
+    class Test:
+        a_date: datetime
+        an_opt: Optional[datetime]
+        a_list: List[datetime]
+
+    the_instance = Test(test_date_1, test_date_2, [test_date_3])
+    the_dict = {
+        'aDate': test_date_1_str,
+        'anOpt': test_date_2_str,
+        'aList': [test_date_3_str],
+    }
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+
+def test_dataclass_dict_custom_class_convert_1():
+    class Custom:
+        def __init__(self, c: str):
+            self.c = c
+
+    test_c_1_str = 'abcdef'
+    test_c_1 = Custom(test_c_1_str)
+    test_c_2_str = '012345'
+    test_c_2 = Custom(test_c_2_str)
+    test_c_3_str = 'foobar'
+    test_c_3 = Custom(test_c_3_str)
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        custom_type_convertors=[SimpleTypeConvertor(
+            type=Custom,
+            to_dict=lambda c: c.c,
+            from_dict=lambda c: Custom(c)
+        )]
+    )
+    @dataclass(frozen=True)
+    class Test:
+        a_date: Custom
+        an_opt: Optional[Custom]
+        a_list: List[Custom]
+
+    the_instance = Test(test_c_1, test_c_2, [test_c_3])
+    the_dict = {
+        'aDate': test_c_1_str,
+        'anOpt': test_c_2_str,
+        'aList': [test_c_3_str],
+    }
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
