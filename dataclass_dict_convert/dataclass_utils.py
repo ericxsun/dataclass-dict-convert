@@ -181,7 +181,8 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
         return
 
     if hasattr(field_type, '__origin__') and field_type.__origin__ is dict:
-        if not field_type.__args__:
+        if not hasattr(field_type, '__args__') or not field_type.__args__:
+            # this is type "dict" or "Dict" (without subtypes specified)
             field_type = dict
             # no return, just check if it's a generic dict
         else:
