@@ -424,12 +424,14 @@ def test_dataclass_dict_convert_datetime_1():
         a_date: datetime
         an_opt: Optional[datetime]
         a_list: List[datetime]
+        a_dict: Dict[str, datetime]
 
-    the_instance = Test(test_date_1, test_date_2, [test_date_3])
+    the_instance = Test(test_date_1, test_date_2, [test_date_3], {'key': test_date_1})
     the_dict = {
         'aDate': test_date_1_str,
         'anOpt': test_date_2_str,
         'aList': [test_date_3_str],
+        'aDict': {'key': test_date_1_str},
     }
 
     expected = the_dict
@@ -462,12 +464,14 @@ def test_dataclass_dict_custom_class_convert_1():
         a_date: Custom
         an_opt: Optional[Custom]
         a_list: List[Custom]
+        a_dict: Dict[str, Custom]
 
-    the_instance = Test(test_c_1, test_c_2, [test_c_3])
+    the_instance = Test(test_c_1, test_c_2, [test_c_3], {'key': test_c_1})
     the_dict = {
         'aDate': test_c_1_str,
         'anOpt': test_c_2_str,
         'aList': [test_c_3_str],
+        'aDict': {'key': test_c_1_str},
     }
 
     expected = the_dict

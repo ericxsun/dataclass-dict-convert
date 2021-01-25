@@ -155,15 +155,45 @@ def _find_convertor(
                 return [sub_convertor(orig_el) for orig_el in orig_val]
             return _opt_convert_helper
         if _is_dict(field_type):
-            if is_from:
-                def dict_handler(d):
-                    if not isinstance(d, Mapping):
-                        raise DataclassConvertError(
-                            "field {} of expected type dict is a {} instead".format(field_name, type(d)))
-                    return dict(d)
-                return dict_handler
+            if not hasattr(field_type, '__args__') or not field_type.__args__:
+                # this is type "dict" or "Dict" (without key/value types specified)
+                # We don't convert types inside! We only do that if subtypes are specified.
+                if is_from:
+                    def dict_handler(d):
+                        if not isinstance(d, Mapping):
+                            raise DataclassConvertError(
+                                "field {} of expected type dict is a {} instead".format(field_name, type(d)))
+                        return dict(d)
+                    return dict_handler
+                else:
+                    return lambda d: d
             else:
-                return lambda d: d
+                # this is type "dict" or "Dict" (with key/value types specified)
+                dict_key_type = field_type.__args__[0]
+                dict_value_type = field_type.__args__[1]
+                dict_key_handler = _find_convertor(
+                    field_name, dict_key_type,
+                    default_datetime_convertor, custom_dict_convertors, custom_type_convertors, direct_fields,
+                    is_from)
+                dict_value_handler = _find_convertor(
+                    field_name, dict_value_type,
+                    default_datetime_convertor, custom_dict_convertors, custom_type_convertors, direct_fields,
+                    is_from)
+                if dict_key_handler is None or dict_value_handler is None:
+                    raise DataclassConvertError(
+                        f'Error while searching convertor for field "{field_name}" of type "{field_type}" '
+                        f'is_from={is_from} '
+                        f'dict_key_handler found={dict_key_handler is not None} '
+                        f'dict_value_handler found={dict_value_handler is not None}')
+                if is_from:
+                    def dict_handler(d):
+                        if not isinstance(d, Mapping):
+                            raise DataclassConvertError(
+                                "field {} of expected type dict is a {} instead".format(field_name, type(d)))
+                        return {dict_key_handler(k): dict_value_handler(v) for k, v in d.items()}
+                    return dict_handler
+                else:
+                    return lambda d: {dict_key_handler(k): dict_value_handler(v) for k, v in d.items()}
         if _is_enum(field_type):
             if is_from:
                 return field_type.__members__.get
