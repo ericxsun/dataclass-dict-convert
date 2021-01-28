@@ -334,8 +334,8 @@ def _wrap_dataclass_dict_convert(
         assert cls is cls2  # minor sanity check
         return _from_dict(cls, json.loads(json_in), on_unknown_field_override=on_unknown_field_override)
 
-    def _to_json(self) -> str:
-        return json.dumps(self.to_dict())
+    def _to_json(self, *, remove_none=False) -> str:
+        return json.dumps(self.to_dict(remove_none=remove_none))
 
     def _from_dict_list(cls2, l: list, *, on_unknown_field_override: Optional[Callable[[str], None]] = None):
         assert cls is cls2  # minor sanity check
