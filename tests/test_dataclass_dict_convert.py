@@ -1,5 +1,6 @@
 import dataclasses
 import json
+from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -472,6 +473,38 @@ def test_dataclass_dict_custom_class_convert_1():
         'anOpt': test_c_2_str,
         'aList': [test_c_3_str],
         'aDict': {'key': test_c_1_str},
+    }
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+
+def test_dataclass_dict_Dict_convert_1():
+    test_d_1 = {'foo': 'bar'}
+    test_d_2 = {'foo2': 'bar2'}
+    test_d_3 = {'foo3': 'bar3'}
+    test_d_4 = {'foo4': 'bar4'}
+
+    class TestBase(ABC):
+        pass
+
+    @dataclass_dict_convert(dict_letter_case=camelcase)
+    @dataclass(frozen=True)
+    class Test(TestBase):
+        a_date: Dict
+        an_opt: Optional[Dict] = None
+        an_opt2: Optional[Dict] = None
+        a_list: List[Dict] = dataclasses.field(default=list)
+        a_dict: Dict[str, Dict] = dataclasses.field(default=dict)
+
+    the_instance = Test(dict(test_d_1), dict(test_d_2), None, [dict(test_d_3)], {'key': dict(test_d_4)})
+    the_dict = {
+        'aDate': dict(test_d_1),
+        'anOpt': dict(test_d_2),
+        'anOpt2': None,
+        'aList': [dict(test_d_3)],
+        'aDict': {'key': dict(test_d_4)},
     }
 
     expected = the_dict

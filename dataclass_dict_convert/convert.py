@@ -101,7 +101,17 @@ def _is_dict(a_type: type):
 def _is_enum(a_type: type):
     if hasattr(a_type, '__origin__'):
         return False
-    return issubclass(a_type, Enum)
+    try:
+        return issubclass(a_type, Enum)
+    except TypeError:
+        return False
+
+
+def _is_class(a_type: type):
+    try:
+        return issubclass(a_type, a_type)
+    except TypeError:
+        return False
 
 
 def _is_json_primitive(a_type: type):
@@ -155,14 +165,18 @@ def _find_convertor(
                 return [sub_convertor(orig_el) for orig_el in orig_val]
             return _opt_convert_helper
         if _is_dict(field_type):
-            if not hasattr(field_type, '__args__') or not field_type.__args__:
+            if not hasattr(field_type, '__args__') or len(field_type.__args__) != 2 or \
+                    not _is_class(field_type.__args__[0]) or not _is_class(field_type.__args__[1]):
                 # this is type "dict" or "Dict" (without key/value types specified)
                 # We don't convert types inside! We only do that if subtypes are specified.
+
+                # Note: for some reason, sometimes Dict results in a type with 2 args,
+                #       but they are not classes (key is ~KT). We handle that case above as well.
                 if is_from:
                     def dict_handler(d):
                         if not isinstance(d, Mapping):
                             raise DataclassConvertError(
-                                "field {} of expected type dict is a {} instead".format(field_name, type(d)))
+                                "field {field_name!r} of expected type dict is a {type(d)!r} instead")
                         return dict(d)
                     return dict_handler
                 else:
@@ -181,7 +195,7 @@ def _find_convertor(
                     is_from)
                 if dict_key_handler is None or dict_value_handler is None:
                     raise DataclassConvertError(
-                        f'Error while searching convertor for field "{field_name}" of type "{field_type}" '
+                        f'Error while searching convertor for field {field_name!r} of type {field_type!r} '
                         f'is_from={is_from} '
                         f'dict_key_handler found={dict_key_handler is not None} '
                         f'dict_value_handler found={dict_value_handler is not None}')
@@ -202,16 +216,16 @@ def _find_convertor(
         if dataclasses.is_dataclass(field_type):
             # assume dataclass has to_dict and from_dict
             if not hasattr(field_type, 'from_dict'):
-                raise DataclassConvertError("Subclass '{}' of field {} does not have from_dict()".format(field_type, field_name))
+                raise DataclassConvertError("Subclass {field_type!r} of field {field_name!r} does not have from_dict()")
             if not hasattr(field_type, 'to_dict'):
-                raise DataclassConvertError("Subclass '{}' of field {} does not have to_dict()".format(field_type, field_name))
+                raise DataclassConvertError("Subclass {field_type!r} of field {field_name!r} does not have to_dict()")
             if is_from:
                 return lambda value: field_type.from_dict(value)
             else:
                 return lambda value: value.to_dict()
     except:
-        raise DataclassConvertError('Error while searching convertor for field "{}" of type "{}" is_from={}'
-                                    .format(field_name, field_type, is_from))
+        raise DataclassConvertError(f'Error while searching convertor for field {field_name!r} '
+                                    f'of type {field_type!r} is_from={is_from}')
     return None
 
 
