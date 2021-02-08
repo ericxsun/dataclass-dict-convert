@@ -121,16 +121,25 @@ def _check_list_type_elements_helper(obj, field_name: str, list_val: Any, list_e
                 _field_type_name(list_element_type), type(i).__name__))
 
 
-def _check_dict_type_value_helper(obj, field_name: str, dict_val: Any, dict_value_type):
-    for i in dict_val.values():
-        if not isinstance(i, dict_value_type):
-            raise TypeError("{}.{} must contain dict with values of {}, but the value is a {}".format(
+def _check_dict_type_value_helper(obj, field_name: str, dict_val: Any, dict_key_type, dict_value_type):
+    for key, val in dict_val.items():
+        if not isinstance(key, dict_key_type):
+            raise TypeError("{}.{} must contain dict with keys of {}, but a key is a {}".format(
                 type(obj).__name__, field_name,
-                _field_type_name(dict_value_type), type(i).__name__))
-        if issubclass(dict_value_type, datetime.datetime) and i.tzinfo is None:
-            raise TypeError("{}.{} must contain list of non-naive {}, but the list has a naive {}".format(
+                _field_type_name(dict_key_type), type(key).__name__))
+        if issubclass(dict_key_type, datetime.datetime) and key.tzinfo is None:
+            raise TypeError("{}.{} must contain keys of non-naive {}, but a key has a naive {}".format(
                 type(obj).__name__, field_name,
-                _field_type_name(dict_value_type), type(i).__name__))
+                _field_type_name(dict_key_type), type(key).__name__))
+
+        if not isinstance(val, dict_value_type):
+            raise TypeError("{}.{} must contain dict with values of {}, but a value is a {}".format(
+                type(obj).__name__, field_name,
+                _field_type_name(dict_value_type), type(val).__name__))
+        if issubclass(dict_value_type, datetime.datetime) and val.tzinfo is None:
+            raise TypeError("{}.{} must contain values of non-naive {}, but a value has a naive {}".format(
+                type(obj).__name__, field_name,
+                _field_type_name(dict_value_type), type(val).__name__))
 
 
 def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
@@ -188,12 +197,12 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
         else:
             dict_key_type = field_type.__args__[0]
             dict_value_type = field_type.__args__[1]
-            if dict_key_type is not str:
-                raise NotImplementedError("deep Dict type check with non-str keys is not implemented")
+            # if dict_key_type is not str:
+            #     raise NotImplementedError("deep Dict type check with non-str keys is not implemented")
             if not isinstance(field_val, dict):
                 raise TypeError("{}.{} must be dict, not {}".format(
                     type(obj).__name__, field_name, type(field_val).__name__))
-            _check_dict_type_value_helper(obj, field_name, field_val, dict_value_type)
+            _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
             return
 
     if not isinstance(field_val, field_type):
