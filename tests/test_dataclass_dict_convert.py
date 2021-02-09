@@ -10,7 +10,8 @@ import pytest
 from stringcase import camelcase
 
 from dataclass_dict_convert import dataclass_dict_convert, create_wrap_in_list_from_convertor, \
-    create_dict_of_dataclasses_to_convertor, create_dict_of_dataclasses_from_convertor, datetime_now, parse_rfc3339
+    create_dict_of_dataclasses_to_convertor, create_dict_of_dataclasses_from_convertor, datetime_now, parse_rfc3339, \
+    dataclass_multiline_repr
 from dataclass_dict_convert.convert import _is_optional, SimpleTypeConvertor
 
 
@@ -439,11 +440,20 @@ def test_dataclass_dict_convert_datetime_1():
     actual = the_instance.to_dict()
     assert actual == expected
 
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected
+
 
 def test_dataclass_dict_custom_class_convert_1():
     class Custom:
         def __init__(self, c: str):
             self.c = c
+
+        def __eq__(self, other: object) -> bool:
+            if isinstance(other, Custom):
+                return self.c == other.c
+            return NotImplemented
 
     test_c_1_str = 'abcdef'
     test_c_1 = Custom(test_c_1_str)
@@ -461,6 +471,7 @@ def test_dataclass_dict_custom_class_convert_1():
         )]
     )
     @dataclass(frozen=True)
+    @dataclass_multiline_repr
     class Test:
         a_date: Custom
         an_opt: Optional[Custom]
@@ -477,6 +488,10 @@ def test_dataclass_dict_custom_class_convert_1():
 
     expected = the_dict
     actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
     assert actual == expected
 
 
@@ -509,4 +524,66 @@ def test_dataclass_dict_Dict_convert_1():
 
     expected = the_dict
     actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_inheritance_1():
+    @dataclass_dict_convert(dict_letter_case=camelcase)
+    @dataclass(frozen=True)
+    class CustomParent:
+        a: str
+
+    @dataclass_dict_convert(dict_letter_case=camelcase)
+    @dataclass(frozen=True)
+    class CustomChild(CustomParent):
+        b: str
+
+    the_instance = CustomChild('a1', 'b1')
+
+    the_dict = {
+        'a': 'a1',
+        'b': 'b1',
+    }
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = CustomChild.from_dict(the_dict)
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_inheritance_2():
+    @dataclass_dict_convert(dict_letter_case=camelcase)
+    @dataclass(frozen=True)
+    class CustomParent:
+        a: str
+        b: int = 1
+
+    @dataclass_dict_convert(dict_letter_case=camelcase)
+    @dataclass(frozen=True)
+    class CustomChild(CustomParent):
+        c: str = 'blah'
+        d: int = 5
+
+    the_instance = CustomChild(a='a1', b=2, c='c1', d=3)
+
+    the_dict = {
+        'a': 'a1',
+        'b': 2,
+        'c': 'c1',
+        'd': 3,
+    }
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = CustomChild.from_dict(the_dict)
     assert actual == expected

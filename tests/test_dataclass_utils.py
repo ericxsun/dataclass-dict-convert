@@ -707,5 +707,6 @@ def test_dataclass_auto_type_check_decorator_dict8():
     @dataclass_auto_type_check
     class T:
         a: Dict[int, int]
-    with pytest.raises(NotImplementedError):
-        t = T({1: 2})
+    t = T({1: 2, 3: 4})
+    with pytest.raises(TypeError):
+        t = T({1: 2, 'a': 3})
