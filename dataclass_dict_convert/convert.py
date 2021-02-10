@@ -20,6 +20,11 @@ class UnknownFieldError(Exception):
         self.message = message
 
 
+class TypeConvertorError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+
 class TypeConvertor(ABC):
     @abstractmethod
     def get_type(self) -> Type:
@@ -132,10 +137,14 @@ def _find_convertor(
             return lambda p: p
         for custom_type_convertor in custom_type_convertors:
             if field_type is custom_type_convertor.get_type():
-                if is_from:
-                    return custom_type_convertor.convert_from_dict
-                else:
-                    return custom_type_convertor.convert_to_dict
+                try:
+                    if is_from:
+                        return custom_type_convertor.convert_from_dict
+                    else:
+                        return custom_type_convertor.convert_to_dict
+                except:
+                    raise TypeConvertorError(f'Error using custom convertor '
+                                             f'for field {field_name!r} of type {field_type!r}')
         # custom_type_convertor takes precedence, so you can use it to override datetime convert as well.
         if field_type is datetime:
             return default_datetime_convertor
