@@ -338,9 +338,13 @@ def _wrap_dataclass_dict_convert(
             assert key == field_meta.dict_field_name
             try:
                 init_args[field_meta.field_name] = field_meta.from_dict_convertor(value)
-            except:
-                raise TypeConvertorError(f'Error using custom from_dict_convertor '
-                                         f'for field {field_meta.dict_field_name!r}')
+            except Exception as e:
+                if isinstance(e, TypeConvertorError):
+                    # don't add more errors
+                    raise
+                else:
+                    raise TypeConvertorError(f'Error using custom from_dict_convertor '
+                                             f'for field {field_meta.dict_field_name!r}')
         return cls2(**init_args)
 
     def _to_dict(self, *, remove_none=False):
@@ -350,9 +354,13 @@ def _wrap_dataclass_dict_convert(
             value = getattr(self, field_meta.field_name)
             try:
                 used_val = field_meta.to_dict_convertor(value)
-            except:
-                raise TypeConvertorError(f'Error using custom to_dict_convertor '
-                                         f'for field {field_meta.dict_field_name!r}')
+            except Exception as e:
+                if isinstance(e, TypeConvertorError):
+                    # don't add more errors
+                    raise
+                else:
+                    raise TypeConvertorError(f'Error using custom to_dict_convertor '
+                                             f'for field {field_meta.dict_field_name!r}')
             if used_val is not None or not remove_none:
                 res[field_meta.dict_field_name] = _remove_none_recursive(used_val) if remove_none else used_val
         return res
