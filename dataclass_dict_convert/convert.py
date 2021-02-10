@@ -137,14 +137,10 @@ def _find_convertor(
             return lambda p: p
         for custom_type_convertor in custom_type_convertors:
             if field_type is custom_type_convertor.get_type():
-                try:
-                    if is_from:
-                        return custom_type_convertor.convert_from_dict
-                    else:
-                        return custom_type_convertor.convert_to_dict
-                except:
-                    raise TypeConvertorError(f'Error using custom convertor '
-                                             f'for field {field_name!r} of type {field_type!r}')
+                if is_from:
+                    return custom_type_convertor.convert_from_dict
+                else:
+                    return custom_type_convertor.convert_to_dict
         # custom_type_convertor takes precedence, so you can use it to override datetime convert as well.
         if field_type is datetime:
             return default_datetime_convertor
@@ -340,7 +336,11 @@ def _wrap_dataclass_dict_convert(
             if not field_meta:
                 on_unknown_field_override(key) if on_unknown_field_override else meta.on_unknown_field(key)
             assert key == field_meta.dict_field_name
-            init_args[field_meta.field_name] = field_meta.from_dict_convertor(value)
+            try:
+                init_args[field_meta.field_name] = field_meta.from_dict_convertor(value)
+            except:
+                raise TypeConvertorError(f'Error using custom from_dict_convertor '
+                                         f'for field {field_meta.dict_field_name!r}')
         return cls2(**init_args)
 
     def _to_dict(self, *, remove_none=False):
@@ -348,7 +348,11 @@ def _wrap_dataclass_dict_convert(
         for key, field_meta in meta.metadata_by_fields.items():
             assert key == field_meta.field_name
             value = getattr(self, field_meta.field_name)
-            used_val = field_meta.to_dict_convertor(value)
+            try:
+                used_val = field_meta.to_dict_convertor(value)
+            except:
+                raise TypeConvertorError(f'Error using custom to_dict_convertor '
+                                         f'for field {field_meta.dict_field_name!r}')
             if used_val is not None or not remove_none:
                 res[field_meta.dict_field_name] = _remove_none_recursive(used_val) if remove_none else used_val
         return res
