@@ -12,7 +12,7 @@ from stringcase import camelcase
 from dataclass_dict_convert import dataclass_dict_convert, create_wrap_in_list_from_convertor, \
     create_dict_of_dataclasses_to_convertor, create_dict_of_dataclasses_from_convertor, datetime_now, parse_rfc3339, \
     dataclass_multiline_repr
-from dataclass_dict_convert.convert import _is_optional, SimpleTypeConvertor
+from dataclass_dict_convert.convert import _is_optional, SimpleTypeConvertor, TypeConvertorError
 
 
 def test_dataclass_dict_convert_1():
@@ -186,7 +186,7 @@ def test_dataclass_dict_convert_5fail():
     assert actual == expected
 
     expected = the_instance
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeConvertorError):
         actual = Test.from_dict(in_dict)
         assert actual == expected
 
