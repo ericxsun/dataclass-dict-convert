@@ -335,6 +335,7 @@ def _wrap_dataclass_dict_convert(
             field_meta = meta.metadata_by_dict_fields.get(key, None)
             if not field_meta:
                 on_unknown_field_override(key) if on_unknown_field_override else meta.on_unknown_field(key)
+                continue  # ignore this field
             assert key == field_meta.dict_field_name
             try:
                 init_args[field_meta.field_name] = field_meta.from_dict_convertor(value)
