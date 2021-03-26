@@ -78,8 +78,8 @@ def _remove_none_recursive(val: Any) -> Any:
 
 def _is_optional(a_type: type):
     if not (hasattr(a_type, '__origin__') and \
-        a_type.__origin__ is Union and \
-        len(a_type.__args__) == 2):
+            a_type.__origin__ is Union and \
+            len(a_type.__args__) == 2):
         return False
     t1 = a_type.__args__[0]
     t2 = a_type.__args__[1]
@@ -292,12 +292,13 @@ def _wrap_dataclass_dict_convert(
         cls,
         dict_letter_case: Callable[[str], str],
         on_unknown_field: Callable[[str], None],
+        extra_field_defaults: Dict[str, Callable[[Any], Any]],
         direct_fields: List[str],
         default_to_datetime_convertor: Callable[[Any], datetime],
         default_from_datetime_convertor: Optional[Callable[[datetime], Any]],
         custom_to_dict_convertors: Dict[str, Callable[[Any], Any]],
         custom_from_dict_convertors: Dict[str, Callable[[Any], Any]],
-        custom_type_convertors: List[TypeConvertor]):
+        custom_type_convertors: List[TypeConvertor],):
     metadata_by_fields = {}
     metadata_by_dict_fields = {}
 
@@ -331,6 +332,14 @@ def _wrap_dataclass_dict_convert(
             raise ValueError('from_dict(d) (possibly nested) where d is {} instead of dict: {!r}'.format(type(d), d))
         assert cls is cls2  # minor sanity check
         init_args = {}
+        d = dict(d)  # make a copy (undeep!) to make sure we don't change callers dict
+        for key, value in extra_field_defaults.items():
+            key = dict_letter_case(key)
+            if key not in d:
+                if isinstance(value, Callable):
+                    d[key] = value()
+                else:
+                    d[key] = value
         for key, value in d.items():
             field_meta = meta.metadata_by_dict_fields.get(key, None)
             if not field_meta:
@@ -393,12 +402,13 @@ def dataclass_dict_convert(
         _cls=None, *,
         dict_letter_case: Optional[Callable[[str], str]]=None,
         on_unknown_field: Optional[Callable[[str], None]]=None,
+        extra_field_defaults: Dict[str, Callable[[Any], Any]]=None,
         direct_fields: Optional[List[str]]=None,
         default_to_datetime_convertor: Optional[Callable[[Any], datetime]]=None,
         default_from_datetime_convertor: Optional[Callable[[datetime], Any]]=None,
         custom_to_dict_convertors: Optional[Dict[str, Callable[[Any], Any]]]=None,
         custom_from_dict_convertors: Optional[Dict[str, Callable[[Any], Any]]]=None,
-        custom_type_convertors: List[TypeConvertor]=None
+        custom_type_convertors: List[TypeConvertor]=None,
 ):
     """
     This has complex logic to allow decorating with both:
@@ -445,12 +455,13 @@ def dataclass_dict_convert(
             cls,
             dict_letter_case if dict_letter_case else lambda s: s,
             on_unknown_field if on_unknown_field else default_on_unknown,
+            extra_field_defaults if extra_field_defaults else {},
             direct_fields if direct_fields else [],
             default_to_datetime_convertor if default_to_datetime_convertor else dump_rfc3339,
             default_from_datetime_convertor if default_to_datetime_convertor else parse_rfc3339,
             custom_to_dict_convertors if custom_to_dict_convertors else {},
             custom_from_dict_convertors if custom_from_dict_convertors else {},
-            custom_type_convertors if custom_type_convertors else [])
+            custom_type_convertors if custom_type_convertors else [],)
 
     if _cls is None:
         return wrap

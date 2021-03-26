@@ -12,7 +12,7 @@ from stringcase import camelcase
 from dataclass_dict_convert import dataclass_dict_convert, create_wrap_in_list_from_convertor, \
     create_dict_of_dataclasses_to_convertor, create_dict_of_dataclasses_from_convertor, datetime_now, parse_rfc3339, \
     dataclass_multiline_repr
-from dataclass_dict_convert.convert import _is_optional, SimpleTypeConvertor, TypeConvertorError
+from dataclass_dict_convert.convert import _is_optional, SimpleTypeConvertor, TypeConvertorError, UnknownFieldError
 
 
 def test_dataclass_dict_convert_1():
@@ -587,3 +587,135 @@ def test_dataclass_dict_convert_inheritance_2():
     expected = the_instance
     actual = CustomChild.from_dict(the_dict)
     assert actual == expected
+
+
+def test_dataclass_dict_convert_extra_defaults_1():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        extra_field_defaults={}
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        #'aFloat': 0.1,
+        #'aBool': True,
+    }
+
+    assert 'anInt' == camelcase('an_int')
+
+    expected = the_instance
+    with pytest.raises(TypeError):
+        actual = Test.from_dict(the_dict)
+    # assert actual == expected
+
+
+
+def test_dataclass_dict_convert_extra_defaults_2():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        extra_field_defaults={
+            'a_float': 0.1,
+            'a_bool': lambda: True,
+        }
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        #'aFloat': 0.1,
+        #'aBool': True,
+    }
+
+    assert 'anInt' == camelcase('an_int')
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_extra_defaults_3():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        extra_field_defaults={
+            'bad': 10.0,
+        }
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        'aFloat': 0.1,
+        'aBool': True,
+    }
+
+    assert 'anInt' == camelcase('an_int')
+
+    expected = the_instance
+    with pytest.raises(UnknownFieldError):
+        actual = Test.from_dict(the_dict)
+
+
+def test_dataclass_dict_convert_unknown_field_1():
+    @dataclass_dict_convert(dict_letter_case=camelcase,)
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+
+    the_instance = Test(1)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+    }
+
+    with pytest.raises(UnknownFieldError):
+        actual = Test.from_dict(the_dict)
+
+
+def test_dataclass_dict_convert_unknown_field_2():
+    called_unknown = False
+
+    def unknown_handler(fieldname: str):
+        nonlocal called_unknown
+        assert fieldname == 'aStr'
+        called_unknown = True
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        on_unknown_field=unknown_handler
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+
+    the_instance = Test(1)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+    }
+
+    actual = Test.from_dict(the_dict)
+    assert actual == the_instance
+
+    assert called_unknown
