@@ -302,6 +302,13 @@ def _wrap_dataclass_dict_convert(
     metadata_by_fields = {}
     metadata_by_dict_fields = {}
 
+    # if superclass has extra_field_defaults, we want to use these as well.
+    inherited_extra_field_defaults = {}
+    for sc in cls.__mro__:
+        if hasattr(sc, '_dataclass_dict_convert_extra_field_defaults') and sc._dataclass_dict_convert_extra_field_defaults:
+            inherited_extra_field_defaults = dict(sc._dataclass_dict_convert_extra_field_defaults)
+    inherited_extra_field_defaults.update(extra_field_defaults)
+
     all_fields = dataclasses.fields(cls)
 
     for field in all_fields:
@@ -333,7 +340,7 @@ def _wrap_dataclass_dict_convert(
         assert cls is cls2  # minor sanity check
         init_args = {}
         d = dict(d)  # make a copy (undeep!) to make sure we don't change callers dict
-        for key, value in extra_field_defaults.items():
+        for key, value in inherited_extra_field_defaults.items():
             key = dict_letter_case(key)
             if key not in d:
                 if isinstance(value, Callable):
@@ -395,6 +402,7 @@ def _wrap_dataclass_dict_convert(
     cls.to_json = _to_json
     cls.from_dict_list = classmethod(_from_dict_list)
     cls.to_dict_list = staticmethod(_to_dict_list)
+    cls._dataclass_dict_convert_extra_field_defaults = inherited_extra_field_defaults
     return cls
 
 

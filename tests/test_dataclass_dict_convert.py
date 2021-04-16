@@ -617,7 +617,6 @@ def test_dataclass_dict_convert_extra_defaults_1():
     # assert actual == expected
 
 
-
 def test_dataclass_dict_convert_extra_defaults_2():
     @dataclass_dict_convert(
         dict_letter_case=camelcase,
@@ -675,6 +674,66 @@ def test_dataclass_dict_convert_extra_defaults_3():
     expected = the_instance
     with pytest.raises(UnknownFieldError):
         actual = Test.from_dict(the_dict)
+
+
+def test_dataclass_dict_convert_extra_defaults_inherit_1():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        extra_field_defaults={}
+    )
+    @dataclass(frozen=True)
+    class TestA:
+        a_str: str
+        a_str2: str
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+    )
+    @dataclass(frozen=True)
+    class TestB(TestA):
+        an_int: int
+
+    the_instance = TestB('blah', 'b', 3)
+    the_dict = {
+        'anInt': 3,
+        # 'aStr': 'blab',
+        'aStr2': 'b',
+    }
+
+    expected = the_instance
+    with pytest.raises(TypeError):
+        actual = TestB.from_dict(the_dict)
+
+
+def test_dataclass_dict_convert_extra_defaults_inherit_2():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        extra_field_defaults={
+            'a_str': 'blah'
+        }
+    )
+    @dataclass(frozen=True)
+    class TestA:
+        a_str: str
+        a_str2: str
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+    )
+    @dataclass(frozen=True)
+    class TestB(TestA):
+        an_int: int
+
+    the_instance = TestB('blah', 'b', 3)
+    the_dict = {
+        'anInt': 3,
+        # 'aStr': 'blab',
+        'aStr2': 'b',
+    }
+
+    expected = the_instance
+    actual = TestB.from_dict(the_dict)
+    assert actual == expected
 
 
 def test_dataclass_dict_convert_unknown_field_1():
