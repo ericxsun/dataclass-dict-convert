@@ -710,3 +710,105 @@ def test_dataclass_auto_type_check_decorator_dict8():
     t = T({1: 2, 3: 4})
     with pytest.raises(TypeError):
         t = T({1: 2, 'a': 3})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict0():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, int]]
+    t = T(None)
+
+def test_dataclass_auto_type_check_decorator_opt_dict1():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, int]]
+    with pytest.raises(TypeError):
+        t = T({'a': 'b'})
+    with pytest.raises(TypeError):
+        t = T(['a', 'b'])
+    with pytest.raises(TypeError):
+        t = T(('a', 'b'))
+    with pytest.raises(TypeError):
+        t = T('a')
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict2():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, int]]
+    with pytest.raises(TypeError):
+        t = T({'a': 1, 'b': 'c', 'c': 3})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict3():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, int]]
+    t = T({'a': 1, 'b': 2, 'c': 3})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict4():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, int]]
+    t = T({'a': 1, 'b': 2, 'c': 3})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict6():
+    @dataclass
+    @dataclass_auto_type_check
+    class U:
+        b: int
+
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, U]]
+    t = T({'a': U(1), 'b': U(2), 'c': U(3)})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict7():
+    @dataclass
+    @dataclass_auto_type_check
+    class U:
+        b: int
+
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, U]]
+    with pytest.raises(TypeError):
+        t = T({'a': U(1), 'b': U(2), 'c': 3})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict8():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[int, int]]
+    t = T({1: 2, 3: 4})
+    with pytest.raises(TypeError):
+        t = T({1: 2, 'a': 3})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict9():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict]
+    t = T(None)
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict10():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict]
+    t = T({1: 2, 'a': 'b'})
+    with pytest.raises(TypeError):
+        t = T(['a', 'b'])

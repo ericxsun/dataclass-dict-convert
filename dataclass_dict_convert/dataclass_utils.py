@@ -154,6 +154,22 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                     list_element_type = allowed_type.__args__[0]
                     _check_list_type_elements_helper(obj, field_name, field_val, list_element_type)
                     return
+            if hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is dict:
+                if hasattr(allowed_type, '__args__') and allowed_type.__args__:
+                    # Dict[?, ?]
+                    assert len(allowed_type.__args__) == 2, 'Dict subtype MUST have 0 or 2 arguments (Dict[?, ?])'
+                    if isinstance(field_val, dict):
+                        dict_key_type = allowed_type.__args__[0]
+                        dict_value_type = allowed_type.__args__[1]
+                        if not isinstance(field_val, dict):
+                            raise TypeError("{}.{} must be dict, not {}".format(
+                                type(obj).__name__, field_name, type(field_val).__name__))
+                        _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
+                        return
+                else:
+                    # Dict or Dict[]
+                    if isinstance(field_val, dict):
+                        return
             else:
                 if isinstance(field_val, allowed_type):
                     must_reraise = False
