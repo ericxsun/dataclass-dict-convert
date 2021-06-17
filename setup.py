@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="dataclass-dict-convert",
-    version="1.5.2",
+    version="1.5.3",
 
     description="Convert between Dataclasses and dict/json",
     long_description=long_description,

@@ -154,7 +154,7 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                     list_element_type = allowed_type.__args__[0]
                     _check_list_type_elements_helper(obj, field_name, field_val, list_element_type)
                     return
-            if hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is dict:
+            elif hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is dict:
                 if hasattr(allowed_type, '__args__') and allowed_type.__args__:
                     # Dict[?, ?]
                     assert len(allowed_type.__args__) == 2, 'Dict subtype MUST have 0 or 2 arguments (Dict[?, ?])'
