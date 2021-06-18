@@ -3,7 +3,7 @@ import datetime
 import pytest
 from dataclasses import dataclass
 from stringcase import camelcase
-from typing import Optional, List, Dict, Union
+from typing import Optional, List, Dict, Union, Any
 
 from dataclass_dict_convert import dataclass_dict_convert, dataclass_copy_method, dataclass_auto_type_check
 from dataclass_dict_convert.dataclass_utils import dataclass_fields_type_check
@@ -712,6 +712,15 @@ def test_dataclass_auto_type_check_decorator_dict8():
         t = T({1: 2, 'a': 3})
 
 
+def test_dataclass_auto_type_check_decorator_dict9():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Dict[Any, Any]
+    t = T({1: 2, 3: 4})
+    t = T({1: '2', 'a': 3})
+
+
 def test_dataclass_auto_type_check_decorator_opt_dict0():
     @dataclass
     @dataclass_auto_type_check
@@ -812,3 +821,12 @@ def test_dataclass_auto_type_check_decorator_opt_dict10():
     t = T({1: 2, 'a': 'b'})
     with pytest.raises(TypeError):
         t = T(['a', 'b'])
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict11():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[Any, Any]]
+    t = T({1: 2, 3: 4})
+    t = T({1: '2', 'a': 3})
