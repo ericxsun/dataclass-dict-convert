@@ -2,6 +2,7 @@ import _thread
 import copy
 import dataclasses
 import datetime
+import logging
 from typing import Optional, Any, List, Union
 
 #
@@ -166,7 +167,15 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                         if not isinstance(field_val, dict):
                             raise TypeError("{}.{} must be dict, not {}".format(
                                 type(obj).__name__, field_name, type(field_val).__name__))
-                        _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
+                        try:
+                            _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
+                        except:
+                            logging.error(f'Problem checking type with '
+                                          f'field_name={field_name!r} '
+                                          f'field_type={field_type!r} '
+                                          f'allowed_type={allowed_type!r} '
+                                          f'dict_key_type={dict_key_type!r} dict_value_type={dict_value_type!r}')
+                            raise
                         return
                 else:
                     # Dict or Dict[]
