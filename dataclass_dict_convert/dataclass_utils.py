@@ -3,7 +3,8 @@ import copy
 import dataclasses
 import datetime
 import logging
-from typing import Optional, Any, List, Union
+from typing import Optional, Any, List, Union, Callable
+
 
 #
 # dataclasses utils that have nothing to do with coverting to/from json/dict
@@ -147,100 +148,113 @@ def _check_dict_type_value_helper(obj, field_name: str, dict_val: Any, dict_key_
 
 def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
     # Note: this gets angry about naive datetime, and won't allow them
-
-    # Union also cover Optional[X], which is Union[X, NoneType]
-    if hasattr(field_type, '__origin__') and field_type.__origin__ is Union:
-        for allowed_type in field_type.__args__:
-            if hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is list:
-                assert hasattr(allowed_type, '__args__')
-                if isinstance(field_val, list):
-                    list_element_type = allowed_type.__args__[0]
-                    _check_list_type_elements_helper(obj, field_name, field_val, list_element_type)
-                    return
-            elif hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is dict:
-                if hasattr(allowed_type, '__args__') and allowed_type.__args__:
-                    # Dict[?, ?]
-                    assert len(allowed_type.__args__) == 2, 'Dict subtype MUST have 0 or 2 arguments (Dict[?, ?])'
-                    if isinstance(field_val, dict):
-                        dict_key_type = allowed_type.__args__[0]
-                        dict_value_type = allowed_type.__args__[1]
-                        if not isinstance(field_val, dict):
-                            raise TypeError("{}.{} must be dict, not {}".format(
-                                type(obj).__name__, field_name, type(field_val).__name__))
-                        try:
-                            _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
-                        except:
-                            logging.error(f'Problem checking type with '
-                                          f'field_name={field_name!r} '
-                                          f'field_type={field_type!r} '
-                                          f'allowed_type={allowed_type!r} '
-                                          f'dict_key_type={dict_key_type!r} dict_value_type={dict_value_type!r}')
-                            raise
+    try:
+        # Union also cover Optional[X], which is Union[X, NoneType]
+        if hasattr(field_type, '__origin__') and field_type.__origin__ is Union:
+            for allowed_type in field_type.__args__:
+                if hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is list:
+                    assert hasattr(allowed_type, '__args__')
+                    if isinstance(field_val, list):
+                        list_element_type = allowed_type.__args__[0]
+                        _check_list_type_elements_helper(obj, field_name, field_val, list_element_type)
                         return
-                else:
-                    # Dict or Dict[]
-                    if isinstance(field_val, dict):
-                        return
-            else:
-                if isinstance(field_val, allowed_type):
-                    must_reraise = False
-                    try:
-                        if issubclass(allowed_type, datetime.datetime) and field_val.tzinfo is None:
-                            must_reraise = True
-                            raise TypeError("{}.{} must be {}, and it is a {}, but a naive one".format(
-                                type(obj).__name__, field_name,
-                                _field_type_name(allowed_type), type(field_val).__name__))
-                        return
-                    except:
-                        # it's not a datetime.datetime, so we can ignore that issubclass doesn't work at this point
-                        # (if allowed_type=typing.Dict then issubclass doesn't work)
-                        if must_reraise:
-                            raise
-                        else:
+                elif hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is dict:
+                    if hasattr(allowed_type, '__args__') and allowed_type.__args__:
+                        # Dict[?, ?]
+                        assert len(allowed_type.__args__) == 2, 'Dict subtype MUST have 0 or 2 arguments (Dict[?, ?])'
+                        if isinstance(field_val, dict):
+                            dict_key_type = allowed_type.__args__[0]
+                            dict_value_type = allowed_type.__args__[1]
+                            if not isinstance(field_val, dict):
+                                raise TypeError("{}.{} must be dict, not {}".format(
+                                    type(obj).__name__, field_name, type(field_val).__name__))
+                            try:
+                                _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
+                            except:
+                                def error_handle(a: Callable) -> str:
+                                    try:
+                                        return a()
+                                    except Exception as e:
+                                        return f'ERROR: {e}'
+                                logging.error(f'Failure checking Union[Dict[?, ?]] type with '
+                                              f'field_name={field_name!r} '
+                                              f'field_type={field_type!r} '
+                                              f'len(allowed_type.__args__)={len(allowed_type.__args__)} '
+                                              f'allowed_type.__args__={allowed_type.__args__!r} '
+                                              f'allowed_type={allowed_type!r} '
+                                              f'dict_key_type={dict_key_type!r} '
+                                              f'dict_value_type={dict_value_type!r}'
+                                              f'dict_key_type.__origin__={error_handle(dict_key_type.__origin__)!r} '
+                                              f'dict_value_type.__origin__={error_handle(dict_value_type.__origin__)!r}')
+                                raise
                             return
-                        # raise TypeError("{}.{} must be {}, but it is {} and "
-                        #                 "something went wrong because of {!r}".format(
-                        #     type(obj).__name__, field_name,
-                        #     _field_type_name(allowed_type), type(field_val).__name__,
-                        #     allowed_type))
-        raise TypeError("{}.{} must be one of {}, not {} ({!r} {!r})".format(
-            type(obj).__name__, field_name,
-            [_field_type_name(t) for t in field_type.__args__], type(field_val).__name__,
-            field_type.__args__, type(field_val)))
+                    else:
+                        # Dict or Dict[]
+                        if isinstance(field_val, dict):
+                            return
+                else:
+                    if isinstance(field_val, allowed_type):
+                        must_reraise = False
+                        try:
+                            if issubclass(allowed_type, datetime.datetime) and field_val.tzinfo is None:
+                                must_reraise = True
+                                raise TypeError("{}.{} must be {}, and it is a {}, but a naive one".format(
+                                    type(obj).__name__, field_name,
+                                    _field_type_name(allowed_type), type(field_val).__name__))
+                            return
+                        except:
+                            # it's not a datetime.datetime, so we can ignore that issubclass doesn't work at this point
+                            # (if allowed_type=typing.Dict then issubclass doesn't work)
+                            if must_reraise:
+                                raise
+                            else:
+                                return
+                            # raise TypeError("{}.{} must be {}, but it is {} and "
+                            #                 "something went wrong because of {!r}".format(
+                            #     type(obj).__name__, field_name,
+                            #     _field_type_name(allowed_type), type(field_val).__name__,
+                            #     allowed_type))
+            raise TypeError("{}.{} must be one of {}, not {} ({!r} {!r})".format(
+                type(obj).__name__, field_name,
+                [_field_type_name(t) for t in field_type.__args__], type(field_val).__name__,
+                field_type.__args__, type(field_val)))
 
-    if hasattr(field_type, '__origin__') and field_type.__origin__ is list:
-        list_element_type = field_type.__args__[0]
-        if not isinstance(field_val, list):
-            raise TypeError("{}.{} must be list, not {}".format(
-                type(obj).__name__, field_name, type(field_val).__name__))
-        _check_list_type_elements_helper(obj, field_name, field_val, list_element_type)
-        return
-
-    if hasattr(field_type, '__origin__') and field_type.__origin__ is dict:
-        if not hasattr(field_type, '__args__') or not field_type.__args__:
-            # this is type "dict" or "Dict" (without subtypes specified)
-            field_type = dict
-            # no return, just check if it's a generic dict
-        else:
-            dict_key_type = field_type.__args__[0]
-            dict_value_type = field_type.__args__[1]
-            # if dict_key_type is not str:
-            #     raise NotImplementedError("deep Dict type check with non-str keys is not implemented")
-            if not isinstance(field_val, dict):
-                raise TypeError("{}.{} must be dict, not {}".format(
+        if hasattr(field_type, '__origin__') and field_type.__origin__ is list:
+            list_element_type = field_type.__args__[0]
+            if not isinstance(field_val, list):
+                raise TypeError("{}.{} must be list, not {}".format(
                     type(obj).__name__, field_name, type(field_val).__name__))
-            _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
+            _check_list_type_elements_helper(obj, field_name, field_val, list_element_type)
             return
 
-    if not isinstance(field_val, field_type):
-        raise TypeError("{}.{} must be {}, not {}".format(
-            type(obj).__name__, field_name,
-            _field_type_name(field_type), type(field_val).__name__))
+        if hasattr(field_type, '__origin__') and field_type.__origin__ is dict:
+            if not hasattr(field_type, '__args__') or not field_type.__args__:
+                # this is type "dict" or "Dict" (without subtypes specified)
+                field_type = dict
+                # no return, just check if it's a generic dict
+            else:
+                dict_key_type = field_type.__args__[0]
+                dict_value_type = field_type.__args__[1]
+                # if dict_key_type is not str:
+                #     raise NotImplementedError("deep Dict type check with non-str keys is not implemented")
+                if not isinstance(field_val, dict):
+                    raise TypeError("{}.{} must be dict, not {}".format(
+                        type(obj).__name__, field_name, type(field_val).__name__))
+                _check_dict_type_value_helper(obj, field_name, field_val, dict_key_type, dict_value_type)
+                return
 
-    if issubclass(field_type, datetime.datetime) and field_val.tzinfo is None:
-        raise TypeError("{}.{} must be non-nave {}, not is it a naive {}".format(
-            type(obj).__name__, field_name,
-            _field_type_name(field_type), type(field_val).__name__))
+        if not isinstance(field_val, field_type):
+            raise TypeError("{}.{} must be {}, not {}".format(
+                type(obj).__name__, field_name,
+                _field_type_name(field_type), type(field_val).__name__))
+
+        if issubclass(field_type, datetime.datetime) and field_val.tzinfo is None:
+            raise TypeError("{}.{} must be non-nave {}, not is it a naive {}".format(
+                type(obj).__name__, field_name,
+                _field_type_name(field_type), type(field_val).__name__))
+    except:
+        logging.error(f'Failure checking type for field_name={field_name!r} field_type={field_type!r}')
+        raise
 
 
 def dataclass_field_auto_type_check(obj, field_name):
