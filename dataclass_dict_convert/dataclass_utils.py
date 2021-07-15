@@ -3,7 +3,7 @@ import copy
 import dataclasses
 import datetime
 import logging
-from typing import Optional, Any, List, Union, Callable
+from typing import Optional, Any, List, Union, Callable, TypeVar
 
 
 #
@@ -146,6 +146,23 @@ def _check_dict_type_value_helper(obj, field_name: str, dict_val: Any, dict_key_
                     _field_type_name(dict_value_type), type(val).__name__))
 
 
+def _dict_type_has_2_valid_type_args(dict_type) -> bool:
+    if not hasattr(dict_type, '__args__'):
+        return False
+    if not dict_type.__args__:
+        return False
+    if len(dict_type.__args__) != 2:
+        return False
+    dict_key_type = dict_type.__args__[0]
+    dict_value_type = dict_type.__args__[1]
+    # this is a special case. Not sure why or when it pops up.
+    if isinstance(dict_key_type, TypeVar):
+        return False
+    if isinstance(dict_value_type, TypeVar):
+        return False
+    return True
+
+
 def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
     # Note: this gets angry about naive datetime, and won't allow them
     try:
@@ -159,7 +176,7 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                         _check_list_type_elements_helper(obj, field_name, field_val, list_element_type)
                         return
                 elif hasattr(allowed_type, '__origin__') and allowed_type.__origin__ is dict:
-                    if hasattr(allowed_type, '__args__') and allowed_type.__args__:
+                    if _dict_type_has_2_valid_type_args(allowed_type):
                         # Dict[?, ?]
                         assert len(allowed_type.__args__) == 2, 'Dict subtype MUST have 0 or 2 arguments (Dict[?, ?])'
                         if isinstance(field_val, dict):
@@ -184,6 +201,8 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                                               f'allowed_type={allowed_type!r} '
                                               f'dict_key_type={dict_key_type!r} '
                                               f'dict_value_type={dict_value_type!r}'
+                                              f'type(dict_key_type)={type(dict_key_type)!r} '
+                                              f'type(dict_value_type)={type(dict_value_type)!r}'
                                               f'dict_key_type.__origin__={error_handle(lambda: dict_key_type.__origin__)!r} '
                                               f'dict_value_type.__origin__={error_handle(lambda: dict_value_type.__origin__)!r}')
                                 raise
@@ -228,7 +247,7 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
             return
 
         if hasattr(field_type, '__origin__') and field_type.__origin__ is dict:
-            if not hasattr(field_type, '__args__') or not field_type.__args__:
+            if not _dict_type_has_2_valid_type_args(field_type):
                 # this is type "dict" or "Dict" (without subtypes specified)
                 field_type = dict
                 # no return, just check if it's a generic dict
