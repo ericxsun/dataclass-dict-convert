@@ -184,8 +184,8 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                                               f'allowed_type={allowed_type!r} '
                                               f'dict_key_type={dict_key_type!r} '
                                               f'dict_value_type={dict_value_type!r}'
-                                              f'dict_key_type.__origin__={error_handle(dict_key_type.__origin__)!r} '
-                                              f'dict_value_type.__origin__={error_handle(dict_value_type.__origin__)!r}')
+                                              f'dict_key_type.__origin__={error_handle(lambda: dict_key_type.__origin__)!r} '
+                                              f'dict_value_type.__origin__={error_handle(lambda: dict_value_type.__origin__)!r}')
                                 raise
                             return
                     else:
