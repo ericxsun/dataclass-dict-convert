@@ -790,7 +790,7 @@ def test_dataclass_dict_convert_nested_unknown_field_override_1a():
         assert fieldname in ('aStr1', 'aStr2')
         if fieldname == 'aStr1':
             called_unknown_1 = True
-        if fieldname == 'aStr1':
+        if fieldname == 'aStr2':
             called_unknown_2 = True
 
     @dataclass_dict_convert(
@@ -866,7 +866,7 @@ def test_dataclass_dict_convert_nested_unknown_field_override_1c():
         assert fieldname in ('aStr1', 'aStr2')
         if fieldname == 'aStr1':
             called_unknown_1 = True
-        if fieldname == 'aStr1':
+        if fieldname == 'aStr2':
             called_unknown_2 = True
 
     @dataclass_dict_convert(
@@ -901,7 +901,7 @@ def test_dataclass_dict_convert_nested_unknown_field_override_1c():
     assert called_unknown_2
 
 
-def test_dataclass_dict_convert_nested_unknown_field_override_2():
+def test_dataclass_dict_convert_nested_unknown_field_override_2a():
     called_unknown_1 = False
     called_unknown_2 = False
 
@@ -911,7 +911,7 @@ def test_dataclass_dict_convert_nested_unknown_field_override_2():
         assert fieldname in ('aStr1', 'aStr2')
         if fieldname == 'aStr1':
             called_unknown_1 = True
-        if fieldname == 'aStr1':
+        if fieldname == 'aStr2':
             called_unknown_2 = True
 
     @dataclass_dict_convert(
@@ -946,6 +946,54 @@ def test_dataclass_dict_convert_nested_unknown_field_override_2():
     assert called_unknown_2
 
 
+def test_dataclass_dict_convert_nested_unknown_field_override_2b():
+    called_unknown_1 = 0
+    called_unknown_2 = 0
+
+    def unknown_handler(fieldname: str):
+        nonlocal called_unknown_1
+        nonlocal called_unknown_2
+        assert fieldname in ('aStr1', 'aStr2')
+        if fieldname == 'aStr1':
+            called_unknown_1 += 1
+        if fieldname == 'aStr2':
+            called_unknown_2 += 1
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+    )
+    @dataclass(frozen=True)
+    class TestB:
+        an_int2: int
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        b: List[TestB]
+
+    the_instance = Test(1, [TestB(2), TestB(3)])
+    the_dict = {
+        'anInt': 1,
+        'aStr1': 'foo',
+        'b': [{
+            'anInt2': 2,
+            'aStr2': 'bar',
+        }, {
+            'anInt2': 3,
+            'aStr2': 'bar',
+        }]
+    }
+
+    actual = Test.from_dict(the_dict, on_unknown_field_override=unknown_handler)
+    assert actual == the_instance
+
+    assert called_unknown_1 == 1
+    assert called_unknown_2 == 2
+
+
 def test_dataclass_dict_convert_nested_unknown_field_override_3():
     called_unknown_1 = 0
     called_unknown_2 = 0
@@ -956,7 +1004,7 @@ def test_dataclass_dict_convert_nested_unknown_field_override_3():
         assert fieldname in ('aStr1', 'aStr2')
         if fieldname == 'aStr1':
             called_unknown_1 += 1
-        if fieldname == 'aStr1':
+        if fieldname == 'aStr2':
             called_unknown_2 += 1
 
     @dataclass_dict_convert(

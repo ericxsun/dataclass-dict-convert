@@ -226,9 +226,7 @@ def _find_convertor(
             if not hasattr(field_type, 'to_dict'):
                 raise DataclassConvertError("Subclass {field_type!r} of field {field_name!r} does not have to_dict()")
             if is_from:
-                return lambda value: field_type.from_dict(
-                    value, on_unknown_field_override=_get_current_on_unknown_field()
-                )
+                return lambda value: field_type.from_dict(value)
             else:
                 return lambda value: value.to_dict()
     except:
@@ -296,11 +294,31 @@ _dataclass_dict_convert_threadLocal = threading.local()
 
 
 def _set_current_on_unknown_field(on_unknown_field: Optional[Callable[[str], None]]):
+    assert getattr(_dataclass_dict_convert_threadLocal, 'depth', 0) == 0
+    _dataclass_dict_convert_threadLocal.depth = 1
     _dataclass_dict_convert_threadLocal.on_unknown_field = on_unknown_field
 
 
+def _dec_depth_current_on_unknown_field():
+    assert getattr(_dataclass_dict_convert_threadLocal, 'depth', 0) > 0
+    _dataclass_dict_convert_threadLocal.depth = getattr(_dataclass_dict_convert_threadLocal, 'depth', 0) - 1
+    if _dataclass_dict_convert_threadLocal.depth < 1:
+        _dataclass_dict_convert_threadLocal.depth = 0
+        _dataclass_dict_convert_threadLocal.on_unknown_field = None
+
+
+def _inc_depth_current_on_unknown_field():
+    assert getattr(_dataclass_dict_convert_threadLocal, 'depth', 0) > 0
+    _dataclass_dict_convert_threadLocal.depth += 1
+
+
 def _get_current_on_unknown_field() -> Optional[Callable[[str], None]]:
+    assert getattr(_dataclass_dict_convert_threadLocal, 'depth', 0) > 0
     return getattr(_dataclass_dict_convert_threadLocal, 'on_unknown_field', None)
+
+
+def _has_current_on_unknown_field() -> Optional[Callable[[str], None]]:
+    return getattr(_dataclass_dict_convert_threadLocal, 'depth', 0) > 0
 
 
 def _wrap_dataclass_dict_convert(
@@ -350,7 +368,11 @@ def _wrap_dataclass_dict_convert(
     # cls._dataclass_dict_convert_metadata = meta
 
     def _from_dict(cls2, d: dict, *, on_unknown_field_override: Optional[Callable[[str], None]] = None):
-        _set_current_on_unknown_field(on_unknown_field_override)
+        if _has_current_on_unknown_field():
+            _inc_depth_current_on_unknown_field()
+            on_unknown_field_override = _get_current_on_unknown_field()
+        else:
+            _set_current_on_unknown_field(on_unknown_field_override)
         try:
             if not isinstance(d, collections.Mapping):
                 raise ValueError('from_dict(d) (possibly nested) where d is {} instead of dict: {!r}'.format(type(d), d))
@@ -381,7 +403,7 @@ def _wrap_dataclass_dict_convert(
                                                  f'for field {field_meta.dict_field_name!r}')
             return cls2(**init_args)
         finally:
-            _set_current_on_unknown_field(None)
+            _dec_depth_current_on_unknown_field()
 
     def _to_dict(self, *, remove_none=False):
         res = {}
