@@ -1,6 +1,7 @@
 import collections
 import dataclasses
 import json
+import threading
 from abc import ABC, abstractmethod
 from collections import Mapping
 from datetime import datetime
@@ -225,7 +226,9 @@ def _find_convertor(
             if not hasattr(field_type, 'to_dict'):
                 raise DataclassConvertError("Subclass {field_type!r} of field {field_name!r} does not have to_dict()")
             if is_from:
-                return lambda value: field_type.from_dict(value)
+                return lambda value: field_type.from_dict(
+                    value, on_unknown_field_override=_get_current_on_unknown_field()
+                )
             else:
                 return lambda value: value.to_dict()
     except:
@@ -288,6 +291,18 @@ class _DataclassDictConvertMetaData:
     metadata_by_dict_fields: Dict[str, _DataclassDictConvertFieldMetaData]
 
 
+# This is a bit of a hack, used to pass on_unknown_field_override to nested dataclasses
+_dataclass_dict_convert_threadLocal = threading.local()
+
+
+def _set_current_on_unknown_field(on_unknown_field: Optional[Callable[[str], None]]):
+    _dataclass_dict_convert_threadLocal.on_unknown_field = on_unknown_field
+
+
+def _get_current_on_unknown_field() -> Optional[Callable[[str], None]]:
+    return getattr(_dataclass_dict_convert_threadLocal, 'on_unknown_field', None)
+
+
 def _wrap_dataclass_dict_convert(
         cls,
         dict_letter_case: Callable[[str], str],
@@ -335,34 +350,38 @@ def _wrap_dataclass_dict_convert(
     # cls._dataclass_dict_convert_metadata = meta
 
     def _from_dict(cls2, d: dict, *, on_unknown_field_override: Optional[Callable[[str], None]] = None):
-        if not isinstance(d, collections.Mapping):
-            raise ValueError('from_dict(d) (possibly nested) where d is {} instead of dict: {!r}'.format(type(d), d))
-        assert cls is cls2  # minor sanity check
-        init_args = {}
-        d = dict(d)  # make a copy (undeep!) to make sure we don't change callers dict
-        for key, value in inherited_extra_field_defaults.items():
-            key = dict_letter_case(key)
-            if key not in d:
-                if isinstance(value, Callable):
-                    d[key] = value()
-                else:
-                    d[key] = value
-        for key, value in d.items():
-            field_meta = meta.metadata_by_dict_fields.get(key, None)
-            if not field_meta:
-                on_unknown_field_override(key) if on_unknown_field_override else meta.on_unknown_field(key)
-                continue  # ignore this field
-            assert key == field_meta.dict_field_name
-            try:
-                init_args[field_meta.field_name] = field_meta.from_dict_convertor(value)
-            except Exception as e:
-                if isinstance(e, TypeConvertorError):
-                    # don't add more errors
-                    raise
-                else:
-                    raise TypeConvertorError(f'Error using custom from_dict_convertor '
-                                             f'for field {field_meta.dict_field_name!r}')
-        return cls2(**init_args)
+        _set_current_on_unknown_field(on_unknown_field_override)
+        try:
+            if not isinstance(d, collections.Mapping):
+                raise ValueError('from_dict(d) (possibly nested) where d is {} instead of dict: {!r}'.format(type(d), d))
+            assert cls is cls2  # minor sanity check
+            init_args = {}
+            d = dict(d)  # make a copy (undeep!) to make sure we don't change callers dict
+            for key, value in inherited_extra_field_defaults.items():
+                key = dict_letter_case(key)
+                if key not in d:
+                    if isinstance(value, Callable):
+                        d[key] = value()
+                    else:
+                        d[key] = value
+            for key, value in d.items():
+                field_meta = meta.metadata_by_dict_fields.get(key, None)
+                if not field_meta:
+                    on_unknown_field_override(key) if on_unknown_field_override else meta.on_unknown_field(key)
+                    continue  # ignore this field
+                assert key == field_meta.dict_field_name
+                try:
+                    init_args[field_meta.field_name] = field_meta.from_dict_convertor(value)
+                except Exception as e:
+                    if isinstance(e, TypeConvertorError):
+                        # don't add more errors
+                        raise
+                    else:
+                        raise TypeConvertorError(f'Error using custom from_dict_convertor '
+                                                 f'for field {field_meta.dict_field_name!r}')
+            return cls2(**init_args)
+        finally:
+            _set_current_on_unknown_field(None)
 
     def _to_dict(self, *, remove_none=False):
         res = {}
@@ -474,3 +493,8 @@ def dataclass_dict_convert(
     if _cls is None:
         return wrap
     return wrap(_cls)
+
+
+def ignore_unknown_fields(field_name: str):
+    """unknown field handler that silently ignores unknown fields"""
+    pass
