@@ -1046,3 +1046,204 @@ def test_dataclass_dict_convert_nested_unknown_field_override_3():
 
     assert called_unknown_1 == 2
     assert called_unknown_2 == 2
+
+
+def test_dataclass_dict_convert_preprocess_1():
+    def pp(d: Dict) -> Dict:
+        d = dict(d)
+        keys = list(d.keys())
+        for key in keys:
+            if key.startswith('REMOVEME'):
+                new_key = key[8:]
+                d[new_key] = d[key]
+                del d[key]
+        return d
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        preprocess_from_dict=pp
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        'aFloat': 0.1,
+        'aBool': True,
+    }
+    the_dict2 = {
+        'REMOVEMEanInt': 1,
+        'REMOVEMEaStr': 'foo',
+        'REMOVEMEaFloat': 0.1,
+        'REMOVEMEaBool': True,
+    }
+
+    assert 'anInt' == camelcase('an_int')
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict2)
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_preprocess_2():
+    def pp(d: Dict) -> Dict:
+        keys = list(d.keys())
+        for key in keys:
+            if key.startswith('REMOVEME'):
+                new_key = key[8:]
+                d[new_key] = d[key]
+                del d[key]
+        return d
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        preprocess_from_dict=pp
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        'aFloat': 0.1,
+        'aBool': True,
+    }
+    the_dict2 = {
+        'REMOVEMEanInt': 1,
+        'aStr': 'foo',
+        'REMOVEMEaFloat': 0.1,
+        'aBool': True,
+    }
+
+    assert 'anInt' == camelcase('an_int')
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict2)
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_preprocess_3():
+    def pp(d: Dict) -> Dict:
+        keys = list(d.keys())
+        for key in keys:
+            if key.startswith('REMOVEME'):
+                new_key = key[8:]
+                d[new_key] = d[key]
+                del d[key]
+        return d
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        preprocess_from_dict=pp
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        'aFloat': 0.1,
+        'aBool': True,
+    }
+    the_dict2 = {
+        'REMOVEMEanInt': 1,
+        'aStr': 'foo',
+        'REMOVEMEaFloat': 0.1,
+        'aBool': True,
+    }
+
+    assert 'anInt' == camelcase('an_int')
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_json(json.dumps(the_dict))
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_json(json.dumps(the_dict2))
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_postprocess_1():
+    def pp(d: Dict) -> Dict:
+        d = dict(d)
+        if 'anInt' in d:
+            d['anInt'] = d['anInt'] + 1
+        if 'aStr' in d:
+            d['aStrPlus'] = d['aStr'] + '++'
+            del d['aStr']
+        d['postModified'] = True
+        return d
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        postprocess_to_dict=pp
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        'aFloat': 0.1,
+        'aBool': True,
+    }
+    the_dict2 = {
+        'anInt': 2,
+        'aStrPlus': 'foo++',
+        'aFloat': 0.1,
+        'aBool': True,
+        'postModified': True,
+    }
+
+    expected = the_dict2
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = json.dumps(the_dict2)
+    actual = the_instance.to_json()
+    assert json.loads(actual) == json.loads(expected)
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected

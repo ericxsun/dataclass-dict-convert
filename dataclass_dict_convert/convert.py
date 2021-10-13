@@ -331,7 +331,10 @@ def _wrap_dataclass_dict_convert(
         default_from_datetime_convertor: Optional[Callable[[datetime], Any]],
         custom_to_dict_convertors: Dict[str, Callable[[Any], Any]],
         custom_from_dict_convertors: Dict[str, Callable[[Any], Any]],
-        custom_type_convertors: List[TypeConvertor],):
+        custom_type_convertors: List[TypeConvertor],
+        preprocess_from_dict: Optional[Callable[[Dict], Dict]],
+        postprocess_to_dict: Optional[Callable[[Dict], Dict]],
+):
     metadata_by_fields = {}
     metadata_by_dict_fields = {}
 
@@ -379,6 +382,10 @@ def _wrap_dataclass_dict_convert(
             assert cls is cls2  # minor sanity check
             init_args = {}
             d = dict(d)  # make a copy (undeep!) to make sure we don't change callers dict
+            if preprocess_from_dict:
+                d = preprocess_from_dict(d)
+                assert d is not None, 'preprocess_from_dict should not return None'
+                assert isinstance(d, collections.Mapping), f'preprocess_from_dict should return Dict, not {type(d)}'
             for key, value in inherited_extra_field_defaults.items():
                 key = dict_letter_case(key)
                 if key not in d:
@@ -421,6 +428,11 @@ def _wrap_dataclass_dict_convert(
                                              f'for field {field_meta.dict_field_name!r}')
             if used_val is not None or not remove_none:
                 res[field_meta.dict_field_name] = _remove_none_recursive(used_val) if remove_none else used_val
+        if postprocess_to_dict:
+            res = postprocess_to_dict(res)
+            # Can't allow these, because they would break to_json
+            assert res is not None, 'postprocess_to_dict should not return None'
+            assert isinstance(res, collections.Mapping), f'postprocess_to_dict should return Dict, not {type(res)}'
         return res
 
     def _from_json(cls2, json_in: str, *, on_unknown_field_override: Optional[Callable[[str], None]] = None):
@@ -458,6 +470,8 @@ def dataclass_dict_convert(
         custom_to_dict_convertors: Optional[Dict[str, Callable[[Any], Any]]]=None,
         custom_from_dict_convertors: Optional[Dict[str, Callable[[Any], Any]]]=None,
         custom_type_convertors: List[TypeConvertor]=None,
+        preprocess_from_dict: Optional[Callable[[Dict], Dict]]=None,
+        postprocess_to_dict: Optional[Callable[[Dict], Dict]]=None,
 ):
     """
     This has complex logic to allow decorating with both:
@@ -510,7 +524,8 @@ def dataclass_dict_convert(
             default_from_datetime_convertor if default_to_datetime_convertor else parse_rfc3339,
             custom_to_dict_convertors if custom_to_dict_convertors else {},
             custom_from_dict_convertors if custom_from_dict_convertors else {},
-            custom_type_convertors if custom_type_convertors else [],)
+            custom_type_convertors if custom_type_convertors else [],
+            preprocess_from_dict, postprocess_to_dict)
 
     if _cls is None:
         return wrap
