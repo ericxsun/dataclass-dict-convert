@@ -3,7 +3,7 @@ import dataclasses
 import json
 import threading
 from abc import ABC, abstractmethod
-from collections import Mapping
+from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
 from typing import Callable, Optional, Any, Dict, Type, Union, List
@@ -377,7 +377,7 @@ def _wrap_dataclass_dict_convert(
         else:
             _set_current_on_unknown_field(on_unknown_field_override)
         try:
-            if not isinstance(d, collections.Mapping):
+            if not isinstance(d, collections.abc.Mapping):
                 raise ValueError('from_dict(d) (possibly nested) where d is {} instead of dict: {!r}'.format(type(d), d))
             assert cls is cls2  # minor sanity check
             init_args = {}
@@ -385,7 +385,7 @@ def _wrap_dataclass_dict_convert(
             if preprocess_from_dict:
                 d = preprocess_from_dict(d)
                 assert d is not None, 'preprocess_from_dict should not return None'
-                assert isinstance(d, collections.Mapping), f'preprocess_from_dict should return Dict, not {type(d)}'
+                assert isinstance(d, collections.abc.Mapping), f'preprocess_from_dict should return Dict, not {type(d)}'
             for key, value in inherited_extra_field_defaults.items():
                 key = dict_letter_case(key)
                 if key not in d:
@@ -432,7 +432,7 @@ def _wrap_dataclass_dict_convert(
             res = postprocess_to_dict(res)
             # Can't allow these, because they would break to_json
             assert res is not None, 'postprocess_to_dict should not return None'
-            assert isinstance(res, collections.Mapping), f'postprocess_to_dict should return Dict, not {type(res)}'
+            assert isinstance(res, collections.abc.Mapping), f'postprocess_to_dict should return Dict, not {type(res)}'
         return res
 
     def _from_json(cls2, json_in: str, *, on_unknown_field_override: Optional[Callable[[str], None]] = None):
