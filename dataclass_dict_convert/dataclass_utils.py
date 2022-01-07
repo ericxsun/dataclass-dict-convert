@@ -136,14 +136,20 @@ def _check_dict_type_value_helper(obj, field_name: str, dict_val: Any, dict_key_
                     _field_type_name(dict_key_type), type(key).__name__))
 
         if dict_value_type is not Any:
-            if not isinstance(val, dict_value_type):
+            if hasattr(dict_value_type, '__origin__') and dict_value_type.__origin__ is list and hasattr(dict_value_type, '__args__'):
+                if isinstance(val, list):
+                    list_element_type = dict_value_type.__args__[0]
+                    _check_list_type_elements_helper(obj, '{}.{}[{!r}]'.format(type(obj).__name__, field_name, key),
+                                                     val, list_element_type)
+            elif not isinstance(val, dict_value_type):
                 raise TypeError("{}.{} must contain dict with values of {}, but a value is a {}".format(
                     type(obj).__name__, field_name,
                     _field_type_name(dict_value_type), type(val).__name__))
-            if issubclass(dict_value_type, datetime.datetime) and val.tzinfo is None:
-                raise TypeError("{}.{} must contain values of non-naive {}, but a value has a naive {}".format(
-                    type(obj).__name__, field_name,
-                    _field_type_name(dict_value_type), type(val).__name__))
+            else:
+                if issubclass(dict_value_type, datetime.datetime) and val.tzinfo is None:
+                    raise TypeError("{}.{} must contain values of non-naive {}, but a value has a naive {}".format(
+                        type(obj).__name__, field_name,
+                        _field_type_name(dict_value_type), type(val).__name__))
 
 
 def _dict_type_has_2_valid_type_args(dict_type) -> bool:

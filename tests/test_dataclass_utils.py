@@ -721,6 +721,21 @@ def test_dataclass_auto_type_check_decorator_dict9():
     t = T({1: '2', 'a': 3})
 
 
+def test_dataclass_auto_type_check_decorator_dict10():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Dict[int, List[int]]
+    t = T({1: [2, 3], 4: [5, 6]})
+    t = T({1: [2, 3], 4: []})
+    with pytest.raises(TypeError):
+        t = T({1: ['a'], 4: [5, 6]})
+    with pytest.raises(TypeError):
+        t = T({1: [2, 3], 4: [5, 'a']})
+    with pytest.raises(TypeError):
+        t = T({'a': [2, 3], 4: [5, 6]})
+
+
 def test_dataclass_auto_type_check_decorator_opt_dict0():
     @dataclass
     @dataclass_auto_type_check
@@ -830,3 +845,17 @@ def test_dataclass_auto_type_check_decorator_opt_dict11():
         a: Optional[Dict[Any, Any]]
     t = T({1: 2, 3: 4})
     t = T({1: '2', 'a': 3})
+
+
+def test_dataclass_auto_type_check_decorator_opt_dict12():
+    @dataclass
+    @dataclass_auto_type_check
+    class T:
+        a: Optional[Dict[str, List[str]]]
+    t = T({'1': ['2', '3'], '4': ['5', '6']})
+    t = T({'1': ['2', '3'], '4': []})
+    t = T(None)
+    with pytest.raises(TypeError):
+        t = T({'1': ['2', '3'], '4': ['5', 6]})
+    with pytest.raises(TypeError):
+        t = T({1: ['2', '3'], '4': ['5', '6']})
