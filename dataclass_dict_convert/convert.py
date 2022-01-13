@@ -110,6 +110,7 @@ def _is_enum(a_type: type):
     try:
         return issubclass(a_type, Enum)
     except TypeError:
+        # could be prevented by checking inspect.isclass(a_type)
         return False
 
 
@@ -117,6 +118,7 @@ def _is_class(a_type: type):
     try:
         return issubclass(a_type, a_type)
     except TypeError:
+        # could be prevented by checking inspect.isclass(a_type)
         return False
 
 

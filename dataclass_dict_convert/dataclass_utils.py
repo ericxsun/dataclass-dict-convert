@@ -3,6 +3,7 @@ import copy
 import dataclasses
 import datetime
 import logging
+from inspect import isclass
 from typing import Optional, Any, List, Union, Callable, TypeVar
 
 
@@ -117,7 +118,7 @@ def _check_list_type_elements_helper(obj, field_name: str, list_val: Any, list_e
             raise TypeError("{}.{} must contain list of {}, but the list has a {}".format(
                 type(obj).__name__, field_name,
                 _field_type_name(list_element_type), type(i).__name__))
-        if issubclass(list_element_type, datetime.datetime) and i.tzinfo is None:
+        if isclass(list_element_type) and issubclass(list_element_type, datetime.datetime) and i.tzinfo is None:
             raise TypeError("{}.{} must contain list of non-naive {}, but the list has a naive {}".format(
                 type(obj).__name__, field_name,
                 _field_type_name(list_element_type), type(i).__name__))
@@ -130,7 +131,7 @@ def _check_dict_type_value_helper(obj, field_name: str, dict_val: Any, dict_key_
                 raise TypeError("{}.{} must contain dict with keys of {}, but a key is a {}".format(
                     type(obj).__name__, field_name,
                     _field_type_name(dict_key_type), type(key).__name__))
-            if issubclass(dict_key_type, datetime.datetime) and key.tzinfo is None:
+            if isclass(dict_key_type) and issubclass(dict_key_type, datetime.datetime) and key.tzinfo is None:
                 raise TypeError("{}.{} must contain keys of non-naive {}, but a key has a naive {}".format(
                     type(obj).__name__, field_name,
                     _field_type_name(dict_key_type), type(key).__name__))
@@ -146,7 +147,7 @@ def _check_dict_type_value_helper(obj, field_name: str, dict_val: Any, dict_key_
                     type(obj).__name__, field_name,
                     _field_type_name(dict_value_type), type(val).__name__))
             else:
-                if issubclass(dict_value_type, datetime.datetime) and val.tzinfo is None:
+                if isclass(dict_value_type) and issubclass(dict_value_type, datetime.datetime) and val.tzinfo is None:
                     raise TypeError("{}.{} must contain values of non-naive {}, but a value has a naive {}".format(
                         type(obj).__name__, field_name,
                         _field_type_name(dict_value_type), type(val).__name__))
@@ -221,7 +222,7 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                     if isinstance(field_val, allowed_type):
                         must_reraise = False
                         try:
-                            if issubclass(allowed_type, datetime.datetime) and field_val.tzinfo is None:
+                            if isclass(allowed_type) and issubclass(allowed_type, datetime.datetime) and field_val.tzinfo is None:
                                 must_reraise = True
                                 raise TypeError("{}.{} must be {}, and it is a {}, but a naive one".format(
                                     type(obj).__name__, field_name,
@@ -273,7 +274,7 @@ def _dataclass_field_auto_type_check(obj, field_name, field_val, field_type):
                 type(obj).__name__, field_name,
                 _field_type_name(field_type), type(field_val).__name__))
 
-        if issubclass(field_type, datetime.datetime) and field_val.tzinfo is None:
+        if isclass(field_type) and issubclass(field_type, datetime.datetime) and field_val.tzinfo is None:
             raise TypeError("{}.{} must be non-nave {}, not is it a naive {}".format(
                 type(obj).__name__, field_name,
                 _field_type_name(field_type), type(field_val).__name__))
