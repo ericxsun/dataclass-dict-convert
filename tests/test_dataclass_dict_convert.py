@@ -7,7 +7,7 @@ from enum import Enum
 from typing import List, Optional, Union, Dict
 
 import pytest
-from stringcase import camelcase
+from stringcase import camelcase, snakecase
 
 from dataclass_dict_convert import dataclass_dict_convert, create_wrap_in_list_from_convertor, \
     create_dict_of_dataclasses_to_convertor, create_dict_of_dataclasses_from_convertor, datetime_now, parse_rfc3339, \
@@ -119,7 +119,7 @@ def test_dataclass_dict_convert_3():
     assert actual == expected
 
 
-def test_dataclass_dict_convert_4():
+def test_dataclass_dict_convert_composition_4():
     @dataclass_dict_convert(
         dict_letter_case=camelcase
     )
@@ -1246,4 +1246,118 @@ def test_dataclass_dict_convert_postprocess_1():
 
     expected = the_instance
     actual = Test.from_dict(the_dict)
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_alt_letter_case_1():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        alt_dict_letter_case=snakecase,
+    )
+    @dataclass(frozen=True)
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    the_dict = {
+        'anInt': 1,
+        'aStr': 'foo',
+        'aFloat': 0.1,
+        'aBool': True,
+    }
+    the_dict_alt = {
+        'an_int': 1,
+        'a_str': 'foo',
+        'a_float': 0.1,
+        'a_bool': True,
+    }
+
+    assert 'anInt' == camelcase('an_int')
+    assert 'an_int' == snakecase('an_int')
+
+    # regular case test
+
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected
+
+    # ALT case test
+
+    expected = the_dict_alt
+    actual = the_instance.to_dict(alt_case=True)
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict_alt)
+    assert actual == expected
+
+
+def test_dataclass_dict_convert_alt_letter_case_2_composition():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        alt_dict_letter_case=snakecase,
+    )
+    @dataclass(frozen=True)
+    class TestB:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase,
+        alt_dict_letter_case=snakecase,
+    )
+    @dataclass(frozen=True)
+    class Test:
+        nestedClass: TestB
+        nestedInOpt: Optional[TestB]
+        nestedInList: List[TestB]
+
+    the_instanceB1 = TestB(1, 'foo', 0.1, True)
+    the_instanceB2 = TestB(2, 'bar', 0.2, False)
+    the_instanceB3 = TestB(3, 'baz', 0.3, True)
+    the_instanceB4 = TestB(4, 'huh', 0.4, False)
+    the_instance = Test(the_instanceB1, the_instanceB2, [the_instanceB3, the_instanceB4])
+    the_dict = {
+        'nestedClass': {'anInt': 1, 'aStr': 'foo', 'aFloat': 0.1, 'aBool': True,},
+        'nestedInOpt': {'anInt': 2, 'aStr': 'bar', 'aFloat': 0.2, 'aBool': False,},
+        'nestedInList': [
+            {'anInt': 3, 'aStr': 'baz', 'aFloat': 0.3, 'aBool': True, },
+            {'anInt': 4, 'aStr': 'huh', 'aFloat': 0.4, 'aBool': False, },
+        ],
+    }
+    the_dict_alt = {
+        'nested_class': {'an_int': 1, 'a_str': 'foo', 'a_float': 0.1, 'a_bool': True,},
+        'nested_in_opt': {'an_int': 2, 'a_str': 'bar', 'a_float': 0.2, 'a_bool': False,},
+        'nested_in_list': [
+            {'an_int': 3, 'a_str': 'baz', 'a_float': 0.3, 'a_bool': True, },
+            {'an_int': 4, 'a_str': 'huh', 'a_float': 0.4, 'a_bool': False, },
+        ],
+    }
+
+    # regular case test
+    expected = the_dict
+    actual = the_instance.to_dict()
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict)
+    assert actual == expected
+
+    # ALT case test
+
+    expected = the_dict_alt
+    actual = the_instance.to_dict(alt_case=True)
+    assert actual == expected
+
+    expected = the_instance
+    actual = Test.from_dict(the_dict_alt)
     assert actual == expected

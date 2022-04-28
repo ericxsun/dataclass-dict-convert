@@ -60,6 +60,7 @@ class SimpleTypeConvertor(TypeConvertor):
 class _DataclassDictConvertFieldMetaData:
     field_name: str
     dict_field_name: str
+    alt_dict_field_name: Optional[str]
     to_dict_convertor: Callable[[Any], Any]
     from_dict_convertor: Callable[[Any], Any]
 
@@ -230,7 +231,7 @@ def _find_convertor(
             if is_from:
                 return lambda value: field_type.from_dict(value)
             else:
-                return lambda value: value.to_dict()
+                return lambda value: value.to_dict(alt_case=_get_alt_case())
     except:
         raise DataclassConvertError(f'Error while searching convertor for field {field_name!r} '
                                     f'of type {field_type!r} is_from={is_from}')
@@ -292,7 +293,16 @@ class _DataclassDictConvertMetaData:
 
 
 # This is a bit of a hack, used to pass on_unknown_field_override to nested dataclasses
+# It also passes alt_case
 _dataclass_dict_convert_threadLocal = threading.local()
+
+
+def _set_alt_case(alt_case: bool):
+    _dataclass_dict_convert_threadLocal.alt_case = alt_case
+
+
+def _get_alt_case() -> bool:
+    return getattr(_dataclass_dict_convert_threadLocal, 'alt_case', False)
 
 
 def _set_current_on_unknown_field(on_unknown_field: Optional[Callable[[str], None]]):
@@ -326,6 +336,7 @@ def _has_current_on_unknown_field() -> Optional[Callable[[str], None]]:
 def _wrap_dataclass_dict_convert(
         cls,
         dict_letter_case: Callable[[str], str],
+        alt_dict_letter_case: Optional[Callable[[str], str]],
         on_unknown_field: Callable[[str], None],
         extra_field_defaults: Dict[str, Union[Any, Callable[[Any], Any]]],
         direct_fields: List[str],
@@ -353,6 +364,7 @@ def _wrap_dataclass_dict_convert(
         meta = _DataclassDictConvertFieldMetaData(
             field.name,
             dict_letter_case(field.name),
+            alt_dict_letter_case(field.name) if alt_dict_letter_case else None,
             _find_convertor(field.name, field.type,
                             default_to_datetime_convertor, custom_to_dict_convertors, custom_type_convertors, direct_fields,
                             is_from=False),
@@ -366,6 +378,8 @@ def _wrap_dataclass_dict_convert(
             raise DataclassConvertError("""Unhandled "from" type '{}' of field '{}'""".format(field.type, field.name))
         metadata_by_fields[field.name] = meta
         metadata_by_dict_fields[meta.dict_field_name] = meta
+        if meta.alt_dict_field_name:
+            metadata_by_dict_fields[meta.alt_dict_field_name] = meta
 
     meta = _DataclassDictConvertMetaData(
         on_unknown_field, metadata_by_fields, metadata_by_dict_fields
@@ -390,7 +404,8 @@ def _wrap_dataclass_dict_convert(
                 assert isinstance(d, collections.abc.Mapping), f'preprocess_from_dict should return Dict, not {type(d)}'
             for key, value in inherited_extra_field_defaults.items():
                 key = dict_letter_case(key)
-                if key not in d:
+                alt_key = alt_dict_letter_case(key) if alt_dict_letter_case else None
+                if key not in d and ((not alt_key) or alt_key not in d):
                     if isinstance(value, Callable):
                         d[key] = value()
                     else:
@@ -400,7 +415,8 @@ def _wrap_dataclass_dict_convert(
                 if not field_meta:
                     on_unknown_field_override(key) if on_unknown_field_override else meta.on_unknown_field(key)
                     continue  # ignore this field
-                assert key == field_meta.dict_field_name
+                assert key == field_meta.dict_field_name or \
+                       (field_meta.alt_dict_field_name and key == field_meta.alt_dict_field_name)
                 try:
                     init_args[field_meta.field_name] = field_meta.from_dict_convertor(value)
                 except Exception as e:
@@ -414,7 +430,8 @@ def _wrap_dataclass_dict_convert(
         finally:
             _dec_depth_current_on_unknown_field()
 
-    def _to_dict(self, *, remove_none=False):
+    def _to_dict(self, *, remove_none=False, alt_case=False):
+        _set_alt_case(alt_case)  # hack for working on embedded dataclasses
         res = {}
         for key, field_meta in meta.metadata_by_fields.items():
             assert key == field_meta.field_name
@@ -429,7 +446,8 @@ def _wrap_dataclass_dict_convert(
                     raise TypeConvertorError(f'Error using custom to_dict_convertor '
                                              f'for field {field_meta.dict_field_name!r}')
             if used_val is not None or not remove_none:
-                res[field_meta.dict_field_name] = _remove_none_recursive(used_val) if remove_none else used_val
+                res[field_meta.dict_field_name if not alt_case else field_meta.alt_dict_field_name] = \
+                    _remove_none_recursive(used_val) if remove_none else used_val
         if postprocess_to_dict:
             res = postprocess_to_dict(res)
             # Can't allow these, because they would break to_json
@@ -441,8 +459,8 @@ def _wrap_dataclass_dict_convert(
         assert cls is cls2  # minor sanity check
         return cls2.from_dict(json.loads(json_in), on_unknown_field_override=on_unknown_field_override)
 
-    def _to_json(self, *, remove_none=False) -> str:
-        return json.dumps(self.to_dict(remove_none=remove_none))
+    def _to_json(self, *, remove_none=False, alt_case=False) -> str:
+        return json.dumps(self.to_dict(remove_none=remove_none, alt_case=alt_case))
 
     def _from_dict_list(cls2, l: list, *, on_unknown_field_override: Optional[Callable[[str], None]] = None):
         assert cls is cls2  # minor sanity check
@@ -464,6 +482,7 @@ def _wrap_dataclass_dict_convert(
 def dataclass_dict_convert(
         _cls=None, *,
         dict_letter_case: Optional[Callable[[str], str]]=None,
+        alt_dict_letter_case: Optional[Callable[[str], str]]=None,
         on_unknown_field: Optional[Callable[[str], None]]=None,
         extra_field_defaults: Dict[str, Union[Any, Callable[[Any], Any]]]=None,
         direct_fields: Optional[List[str]]=None,
@@ -519,6 +538,7 @@ def dataclass_dict_convert(
         return _wrap_dataclass_dict_convert(
             cls,
             dict_letter_case if dict_letter_case else lambda s: s,
+            alt_dict_letter_case,
             on_unknown_field if on_unknown_field else default_on_unknown,
             extra_field_defaults if extra_field_defaults else {},
             direct_fields if direct_fields else [],

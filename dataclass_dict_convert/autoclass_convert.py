@@ -30,8 +30,8 @@ def _wrap_autoclass_dataclass_dict_convert(cls):
         else:
             return orig_from_dict(d, on_unknown_field_override=on_unknown_field_override)
 
-    def _auto_to_dict(self, *, remove_none=False) -> dict:
-        res = orig_to_dict(self, remove_none=remove_none)
+    def _auto_to_dict(self, *, remove_none=False, alt_case=False) -> dict:
+        res = orig_to_dict(self, remove_none=remove_none, alt_case=alt_case)
         res['_classname'] = self.__class__.__module__ + '.' + self.__class__.__qualname__
         return res
 
