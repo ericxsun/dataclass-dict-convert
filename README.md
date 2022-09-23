@@ -5,6 +5,9 @@ This library converts between python [dataclasses](https://docs.python.org/3/lib
 It was created because when using the [dataclasses-json](https://pypi.org/project/dataclasses-json/) library for my use case, I ran into limitations and performance issues. 
 (There's also [typed-json-dataclass](https://pypi.org/project/typed-json-dataclass) but I haven't evaluated that library.)
 
+Since creating this library, I've discovered [Pydentic](https://pypi.org/project/pydentic/), which is a much more professional library, that in 99% of cases will be much more suitable than this library.
+So I strongly recommend using Pydentic. If you use `dataclass-dict-convert`, beware that it is poorly maintained, not very well documented, may contain some bugs, and has some strange edge cases where it doesn't work.
+
 `dataclass-dict-convert` supports lists, optionals, dicts, enums, nested dataclasses, etc. 
 It handles dates using RFC3339 (and enforces timezones and timezone aware `datetime`).
 
