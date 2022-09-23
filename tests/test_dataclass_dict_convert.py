@@ -1361,3 +1361,29 @@ def test_dataclass_dict_convert_alt_letter_case_2_composition():
     expected = the_instance
     actual = Test.from_dict(the_dict_alt)
     assert actual == expected
+
+
+def test_dataclass_multiline_repr_1():
+    @dataclass_dict_convert(
+        dict_letter_case=camelcase
+    )
+    @dataclass(frozen=True)
+    @dataclass_multiline_repr
+    class Test:
+        an_int: int
+        a_str: str
+        a_float: float
+        a_bool: bool
+
+    the_instance = Test(1, 'foo', 0.1, True)
+    expected = 'test_dataclass_multiline_repr_1.<locals>.Test(\n' \
+               '   an_int=1,\n' \
+               '   a_str=\'foo\',\n' \
+               '   a_float=0.1,\n' \
+               '   a_bool=True)'
+
+    actual = repr(the_instance)
+    assert actual == expected
+
+    actual = f'{the_instance!r}'
+    assert actual == expected
